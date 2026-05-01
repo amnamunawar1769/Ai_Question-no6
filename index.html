@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wumpus Logic Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --lav: #c4aff5;
+  --lav-light: #ede8ff;
+  --lav-mid: #b09de0;
+  --lav-deep: #7b5ea7;
+  --ice: #aeddf5;
+  --ice-light: #ddf3fc;
+  --ice-mid: #7ecaeb;
+  --mint: #aaebca;
+  --mint-dark: #4aaa7a;
+  --blush: #f5b8cc;
+  --blush-dark: #c84a6a;
+  --mist: #dcd8f0;
+  --bg: #ede8ff;
+  --surface: #faf8ff;
+  --surface2: #f3f0fe;
+  --text: #26204a;
+  --soft: #6a5f8c;
+  --border: #d4ccf0;
+  --agent-glow: rgba(123,94,167,0.22);
+  --shadow-card: 0 2px 20px rgba(100,80,180,0.08);
+  --shadow-deep: 0 8px 40px rgba(100,80,180,0.13);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px 48px;
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(196,175,245,0.30) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 85%, rgba(174,221,245,0.28) 0%, transparent 55%);
+}
+header { text-align: center; margin-bottom: 36px; animation: fadeDown 0.6s ease both; }
+@keyframes fadeDown { from { opacity:0; transform:translateY(-14px); } to { opacity:1; transform:translateY(0); } }
+header h1 {
+  font-size: 2.2rem; font-weight: 700; letter-spacing: -1px;
+  background: linear-gradient(130deg, var(--lav-deep) 0%, var(--ice-mid) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.layout {
+  display: grid; grid-template-columns: 230px 1fr; gap: 20px;
+  width: 100%; max-width: 960px; animation: fadeUp 0.5s 0.1s ease both;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 18px; padding: 20px; box-shadow: var(--shadow-card);
+}
+.card-title {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 1.8px;
+  text-transform: uppercase; color: var(--soft);
+  margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1.5px solid var(--border);
+}
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field:last-of-type { margin-bottom: 0; }
+label { font-size: 0.73rem; font-weight: 600; color: var(--soft); }
+input[type=number] {
+  width: 100%; padding: 9px 13px; border: 1.5px solid var(--border);
+  border-radius: 10px; background: var(--surface2); color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; font-weight: 600;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type=number]:focus { border-color: var(--lav-mid); box-shadow: 0 0 0 3px rgba(176,157,224,0.18); }
+.btn {
+  width: 100%; padding: 11px 0; border: none; border-radius: 12px;
+  font-family: 'Sora', sans-serif; font-weight: 600; font-size: 0.86rem;
+  cursor: pointer; transition: all 0.18s ease; margin-bottom: 8px;
+}
+.btn:last-child { margin-bottom: 0; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--lav-deep) 0%, var(--lav-mid) 100%);
+  color: #fff; box-shadow: 0 3px 14px rgba(123,94,167,0.30);
+}
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(123,94,167,0.38); }
+.btn-ice { background: var(--ice-light); color: #1a6a8a; border: 1.5px solid var(--ice-mid); }
+.btn-ice:hover:not(:disabled) { background: var(--ice); }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.main { display: flex; flex-direction: column; gap: 16px; }
+.metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.metric {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 16px; padding: 16px 14px 14px; text-align: center;
+  box-shadow: var(--shadow-card); position: relative; overflow: hidden;
+}
+.metric::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; border-radius: 16px 16px 0 0;
+}
+.metric:nth-child(1)::before { background: linear-gradient(90deg, var(--lav), var(--lav-mid)); }
+.metric:nth-child(2)::before { background: linear-gradient(90deg, var(--ice), var(--ice-mid)); }
+.metric:nth-child(3)::before { background: linear-gradient(90deg, var(--mint), var(--mint-dark)); }
+.metric-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 2rem;
+  font-weight: 700; color: var(--lav-deep); line-height: 1;
+}
+.metric-label { font-size: 0.68rem; color: var(--soft); margin-top: 5px; font-weight: 500; }
+.percept-bar {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 12px 18px; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap; min-height: 48px;
+  box-shadow: var(--shadow-card);
+}
+.percept-label-txt { font-size: 0.68rem; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--soft); }
+.ptag { padding: 4px 12px; border-radius: 20px; font-size: 0.76rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.ptag-breeze { background: var(--ice-light); color: #1a6a90; border: 1px solid var(--ice-mid); }
+.ptag-stench { background: #fff5de; color: #9a6010; border: 1px solid #f0cc70; }
+.ptag-none { color: var(--soft); font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; }
+.grid-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 22px; box-shadow: var(--shadow-deep); overflow: auto;
+}
+#grid { display: grid; gap: 7px; margin: 0 auto; width: fit-content; }
+.cell {
+  width: 70px; height: 70px; border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; border: 2px solid transparent;
+  transition: transform 0.2s ease, background 0.3s ease; cursor: default; user-select: none;
+}
+.cell:hover { transform: scale(1.05); }
+.c-unknown { background: var(--mist); border-color: #c0b8dc; color: #7a6fa0; }
+.c-safe { background: var(--ice-light); border-color: var(--ice-mid); color: #1a5a7a; }
+.c-inferred { background: var(--lav-light); border-color: var(--lav-mid); color: #4a2a7a; }
+.c-danger { background: var(--blush); border-color: var(--blush-dark); color: var(--blush-dark); }
+.c-agent { border-color: var(--lav-deep) !important; box-shadow: 0 0 0 3px var(--agent-glow), 0 4px 16px rgba(123,94,167,0.22) !important; }
+.cell-coord { position: absolute; top: 4px; left: 6px; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; opacity: 0.55; font-weight: 600; }
+.cell-icon { font-size: 2rem; line-height: 1; }
+.cell-percept { position: absolute; bottom: 4px; font-size: 0.65rem; opacity: 0.9; letter-spacing: -1px; }
+.status-bar { text-align: center; font-size: 0.78rem; color: var(--soft); font-weight: 400; padding: 4px 0; min-height: 22px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⬡ Wumpus Logic Agent</h1>
+</header>
+<div class="layout">
+  <div class="sidebar">
+    <div class="card">
+      <div class="card-title">Grid Setup</div>
+      <div class="field"><label>Rows</label><input type="number" id="rows" value="4" min="3"></div>
+      <div class="field"><label>Columns</label><input type="number" id="cols" value="4" min="3"></div>
+      <div class="field"><label>Pits</label><input type="number" id="pits" value="3" min="1"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Controls</div>
+      <button class="btn btn-primary" id="btn-start">▶ New Episode</button>
+      <button class="btn btn-ice" id="btn-step" disabled>Step →</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="metrics-row">
+      <div class="metric"><div class="metric-val" id="m-steps">0</div><div class="metric-label">Inference Steps</div></div>
+      <div class="metric"><div class="metric-val" id="m-moves">0</div><div class="metric-label">Moves</div></div>
+      <div class="metric"><div class="metric-val" id="m-safe">0</div><div class="metric-label">Safe Visited</div></div>
+    </div>
+    <div class="percept-bar">
+      <span class="percept-label-txt">Percepts</span>
+      <span id="percepts-area"><span class="ptag-none">—</span></span>
+    </div>
+    <div class="grid-card"><div id="grid"></div></div>
+    <div class="status-bar" id="status">Configure the grid and press New Episode to begin.</div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let state=null;
+
+async function startEpisode(){
+  const res=await fetch('/start',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({rows:$('rows').value,cols:$('cols').value,pits:$('pits').value})});
+  state=await res.json();
+  $('btn-step').disabled=false;
+  renderAll(state);
+}
+
+async function stepEpisode(){
+  if(!state||!state.running)return;
+  const res=await fetch('/step',{method:'POST'});
+  state=await res.json();
+  if(!state.running)$('btn-step').disabled=true;
+  renderAll(state);
+}
+
+function renderAll(s){
+  $('m-steps').textContent=s.inference_steps;
+  $('m-moves').textContent=s.moves;
+  $('m-safe').textContent=Object.values(s.cell_states).filter(v=>v==='safe').length;
+  $('status').textContent=s.status;
+  showPercepts(s.percepts);
+  renderGrid(s);
+}
+
+function showPercepts(p){
+  const area=$('percepts-area');
+  if(!p||p.length===0){area.innerHTML='<span class="ptag-none">None</span>';return;}
+  area.innerHTML=p.map(x=>x==='Breeze'?'<span class="ptag ptag-breeze">💨 Breeze</span>':'<span class="ptag ptag-stench">💀 Stench</span>').join('');
+}
+
+function renderGrid(s){
+  const grid=$('grid');
+  grid.style.gridTemplateColumns=`repeat(${s.C},70px)`;
+  grid.innerHTML='';
+  const pits=s.pits.map(p=>p[0]+','+p[1]);
+  const visited=s.visited.map(v=>v[0]+','+v[1]);
+  for(let r=0;r<s.R;r++){
+    for(let c=0;c<s.C;c++){
+      const div=document.createElement('div');div.className='cell';
+      const k=r+','+c;
+      const st=s.cell_states[k]||'unknown';
+      if(st==='safe')div.classList.add('c-safe');
+      else if(st==='inferred')div.classList.add('c-inferred');
+      else if(st==='danger')div.classList.add('c-danger');
+      else div.classList.add('c-unknown');
+      if(s.agent[0]===r&&s.agent[1]===c&&s.alive)div.classList.add('c-agent');
+      const coord=document.createElement('span');coord.className='cell-coord';coord.textContent=k;div.appendChild(coord);
+      let icon='';
+      if(s.agent[0]===r&&s.agent[1]===c&&s.alive)icon='🤖';
+      else if(st==='danger'){if(pits.includes(k))icon='🕳';else icon='👾';}
+      if(icon){const ic=document.createElement('span');ic.className='cell-icon';ic.textContent=icon;div.appendChild(ic);}
+      if(visited.includes(k)){
+        let pt='';
+        const nbrs=[];
+        if(r>0)nbrs.push((r-1)+','+(c));if(r<s.R-1)nbrs.push((r+1)+','+(c));
+        if(c>0)nbrs.push(r+','+(c-1));if(c<s.C-1)nbrs.push(r+','+(c+1));
+        for(const nk of nbrs){if(pits.includes(nk)){pt+='💨';break;}}
+        if(s.wumpus&&nbrs.includes(s.wumpus[0]+','+s.wumpus[1]))pt+='💀';
+        if(pt){const ps=document.createElement('span');ps.className='cell-percept';ps.textContent=pt;div.appendChild(ps);}
+      }
+      grid.appendChild(div);
+    }
+  }
+}
+
+$('btn-start').addEventListener('click',startEpisode);
+$('btn-step').addEventListener('click',stepEpisode);
+</script>
+</body>
+</html>
